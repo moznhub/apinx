@@ -1,0 +1,712 @@
+{
+  "info": {
+    "name": "Apinx · HR mobile (Test API through the gateway)",
+    "description": "The HR mobile API of the tutorial *A mobile backend, end to end*: the public Test API (https://skyhubsoft.com/test-api/scalar) behind Apinx, API `hr-mobile`, base path `/hr`.\n\nSet `baseUrl` to the proxy listener (default http://localhost:8080). The other variables are the Test API's own documented example values; `setupToken`, `referenceKey` and `accessToken` are filled by the requests as you run them, so run the folders in order (or the whole collection with the Runner).\n\nWhat the gateway does:\n- login: 10 requests a minute per client address (`RateLimit-Limit: 10`, 429 past that)\n- everything else: 100 a minute per signed-in user\n- `setup_scope` tokens open only the login steps; the directory needs `scope_full`; only `admin` may delete\n- the user id reaches the backend from the verified token only (`X-User-Id` from the app is dropped)\n- mobile numbers come back masked (`05xxxxxx01`); request bodies are normalised (Saudi mobile formats, whitespace)\n- employee photos: upload needs a token and at most 100 KB (413 past that); download needs a token and is cached for 5 minutes\n- `POST /hr/api/employees/paged` with `{pageNumber, pageSize}` becomes the backend's `GET …/paged?pageNumber=&pageSize=`\n- every call carries `Accept-Language: ar` or `en` (the collection variable `lang`; 400 `APX-PL-0027` otherwise) and names come back in that language\n- `GET /hr/api/employees/{id}` and `POST /hr/api/auth/verify-token` are anonymous\n- `GET /hr/health` reports the backend from its JWKS; the JWKS itself is not exposed\n\nOpen the console's Traffic page to see every call with its policy timeline.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "lang",
+      "value": "ar",
+      "description": "ar or en: the language every request carries and names come back in"
+    },
+    {
+      "key": "username",
+      "value": "",
+      "description": "Take the demo value from the Test API page: https://skyhubsoft.com/test-api/scalar"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "description": "Take the demo value from the Test API page: https://skyhubsoft.com/test-api/scalar"
+    },
+    {
+      "key": "mobileNumber",
+      "value": "+966 50-000-0001"
+    },
+    {
+      "key": "pin",
+      "value": "",
+      "description": "Take the demo value from the Test API page: https://skyhubsoft.com/test-api/scalar"
+    },
+    {
+      "key": "employeeId",
+      "value": "1001"
+    },
+    {
+      "key": "setupToken",
+      "value": ""
+    },
+    {
+      "key": "referenceKey",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "1 · Health",
+      "item": [
+        {
+          "name": "Backend health (anonymous)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/health"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 when the backend publishes its keys', () => pm.response.to.have.status(200));",
+                  "pm.test('status up, built from the JWKS', () => { const b = pm.response.json(); pm.expect(b.status).to.eql('up'); pm.expect(b.signing_keys).to.be.above(0); pm.expect(b).to.have.property('checked_at'); });",
+                  "pm.test('served through the gateway cache (MISS then HIT for 10 s)', () => pm.expect(['MISS', 'HIT']).to.include(pm.response.headers.get('X-Cache')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2 · Login (three steps)",
+      "item": [
+        {
+          "name": "Step 1 · Login → setup_scope token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('reshaped by the gateway into the OAuth form', () => { pm.expect(b).to.have.all.keys('access_token', 'token_type', 'expires_in', 'scope', 'next_step'); pm.expect(b.scope).to.eql('setup_scope'); });",
+                  "pm.test('login is limited to 10 a minute per address', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('10'));",
+                  "pm.collectionVariables.set('setupToken', b.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 2 · Verify mobile → reference key",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{setupToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"mobileNumber\": \"{{mobileNumber}}\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/auth/verify-mobile"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The app sends '+966 50-000-0001'; the gateway normalises it to 0500000001 before the backend compares it.",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('reference key, reshaped', () => { pm.expect(b).to.have.property('reference_key'); pm.expect(b).to.have.property('next_step'); });",
+                  "pm.collectionVariables.set('referenceKey', b.reference_key);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Step 3 · Verify PIN → scope_full token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{setupToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "ReferenceKey",
+                "value": "{{referenceKey}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pin\": \"{{pin}}\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/auth/verify-pin"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('scope_full token for the directory', () => { pm.expect(b.scope).to.eql('scope_full'); pm.expect(b.token_type).to.eql('Bearer'); });",
+                  "pm.collectionVariables.set('accessToken', b.access_token);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Verify a token (anonymous)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{accessToken}}\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/auth/verify-token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 without a bearer token: the operation is anonymous', () => pm.response.to.have.status(200));",
+                  "pm.test('valid', () => pm.expect(pm.response.json().valid).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "3 · Employees",
+      "item": [
+        {
+          "name": "List (scope_full, masked, cached)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "X-User-Id",
+                "value": "999",
+                "description": "Ignored: the gateway replaces it with the token's sub"
+              }
+            ],
+            "url": "{{baseUrl}}/hr/api/employees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('mobile numbers are masked: first 2 and last 2 digits', () => { pm.expect(b).to.be.an('array').that.is.not.empty; b.forEach(e => pm.expect(e.mobileNumber).to.match(/^\\d{2}x+\\d{2}$/)); });",
+                  "pm.test('100 a minute per user', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('100'));",
+                  "pm.test('cached for 30 s after authentication', () => pm.expect(['MISS', 'HIT']).to.include(pm.response.headers.get('X-Cache')));",
+                  "pm.test('backend and CDN headers removed', () => { pm.expect(pm.response.headers.has('Server')).to.eql(false); pm.expect(pm.response.headers.has('CF-RAY')).to.eql(false); pm.expect(pm.response.headers.get('X-Served-By')).to.eql('apinx'); });",
+                  "pm.test('one name field, in the requested language', () => b.forEach(e => pm.expect(e).to.not.have.property('fullNameAr')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List again (cache HIT)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('served from the gateway cache', () => pm.expect(pm.response.headers.get('X-Cache')).to.eql('HIT'));",
+                  "pm.test('a cached answer still carries the allowance', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('100'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Page (POST for the app, GET for the backend)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pageNumber\": 2,\n  \"pageSize\": 3\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/employees/paged"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The gateway forwards GET /api/employees/paged?pageNumber=2&pageSize=3 and reshapes the page for the app.",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('page 2 of 3 items', () => { pm.expect(b.page.number).to.eql(2); pm.expect(b.page.size).to.eql(3); pm.expect(b.items).to.have.length(3); pm.expect(b.page).to.have.all.keys('number', 'size', 'total_count', 'total_pages', 'has_next', 'has_previous'); });",
+                  "pm.test('masked numbers', () => b.items.forEach(e => pm.expect(e.mobileNumber).to.match(/^\\d{2}x+\\d{2}$/)));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get one (anonymous, masked)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 without a token: anonymous on the backend, anonymous here', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('masked mobile number', () => pm.expect(b.mobileNumber).to.match(/^\\d{2}x+\\d{2}$/));",
+                  "pm.test('per-address limit', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('100'));",
+                  "pm.test('name in the requested language, one name field only', () => { const lang = pm.collectionVariables.get('lang') || 'en'; pm.expect(b).to.not.have.property('fullNameAr'); if (lang === 'ar') pm.expect(b.fullName).to.match(/[\\u0600-\\u06FF]/); else pm.expect(b.fullName).to.not.match(/[\\u0600-\\u06FF]/); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update (fields normalised)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fullName\": \"  Ahmed Al-Harbi \",\n  \"fullNameAr\": \"أحمد الحربي\",\n  \"email\": \"ahmed.alharbi@example.com\",\n  \"mobileNumber\": \"+966 55 100 0001\",\n  \"department\": \"Engineering\",\n  \"jobTitle\": \"Principal Developer\",\n  \"employmentDate\": \"2019-03-10\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The app sends a +966 number with spaces and padded strings; the backend receives 0551000001 and trimmed values.",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('masked number in the answer', () => pm.expect(b.mobileNumber).to.eql('05xxxxxx01'));",
+                  "pm.test('trimmed name stored, returned in the requested language', () => { const lang = pm.collectionVariables.get('lang') || 'en'; pm.expect(b.fullName).to.eql(lang === 'ar' ? 'أحمد الحربي' : 'Ahmed Al-Harbi'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete (admin only)",
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/hr/api/employees/1010"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The token's preferred_username is admin, so the claim rule passes; the backend's data is static, so 204 or 404.",
+                  "pm.test('allowed for admin', () => pm.expect([204, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "4 · Employee photos",
+      "item": [
+        {
+          "name": "Download (token required, cached 5 min)",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}/image"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('a PNG', () => pm.expect(pm.response.headers.get('Content-Type')).to.include('image/png'));",
+                  "pm.test('cached for 5 minutes (MISS, then HIT)', () => pm.expect(['MISS', 'HIT']).to.include(pm.response.headers.get('X-Cache')));",
+                  "pm.test('counted against the user\\'s allowance even when cached', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('100'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Download without a token → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}/image"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// The backend would serve it anonymously; the gateway requires the token so the backend always knows the user.",
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('coded error', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload (token required, at most 100 KB)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "examples/test-api/avatar.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}/image"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Postman resolves the file relative to its working directory: run from the repository root, or pick the file in the Body tab.",
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "const b = pm.response.json();",
+                  "pm.test('the backend saw the file', () => { pm.expect(b.contentType).to.include('image/png'); pm.expect(b.sizeBytes).to.be.above(0); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Upload over 100 KB → 413",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "file",
+                  "type": "file",
+                  "src": "examples/test-api/too-large.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}/image"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Refused by the gateway before the backend reads a byte.",
+                  "pm.test('413', () => pm.response.to.have.status(413));",
+                  "pm.test('coded error', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.match(/^APX-PL-/));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "5 · Refusals",
+      "item": [
+        {
+          "name": "No language header → 400",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.remove('Accept-Language');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('names the header', () => { pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0027'); pm.expect(pm.response.json().details.header).to.eql('Accept-Language'); });"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Language fr → 400",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept-Language",
+                "value": "fr"
+              }
+            ],
+            "url": "{{baseUrl}}/hr/api/employees/{{employeeId}}"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.request.headers.upsert({ key: 'Accept-Language', value: 'fr' });"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));",
+                  "pm.test('allowed values in the details', () => pm.expect(pm.response.json().details.allowed).to.eql(['ar', 'en']));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Directory without a token → 401",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('coded error', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Directory with the setup token → 403",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{setupToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/api/employees"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// A valid token, but setup_scope: the directory requires scope_full.",
+                  "pm.test('403', () => pm.response.to.have.status(403));",
+                  "pm.test('missing scope, named', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0003'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "JWKS is not exposed → 404",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": "{{baseUrl}}/hr/.well-known/jwks.json"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404: only the listed operations exist', () => pm.response.to.have.status(404));",
+                  "pm.test('no operation matched', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-RT-0001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login with a wrong password (run 10× to see 429)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"{{username}}\",\n  \"password\": \"wrong\"\n}"
+            },
+            "url": "{{baseUrl}}/hr/api/auth/login"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// 401 from the backend passes through; the 11th login in a minute from this address is 429 from the gateway.",
+                  "pm.test('401 from the backend or 429 from the gateway', () => pm.expect([401, 429]).to.include(pm.response.code));",
+                  "if (pm.response.code === 429) pm.test('Retry-After tells the app when', () => pm.expect(pm.response.headers.has('Retry-After')).to.eql(true));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every request carries the language the app runs in; requests that test the refusal remove it again.",
+          "pm.request.headers.upsert({ key: 'Accept-Language', value: pm.collectionVariables.get('lang') || 'en' });"
+        ]
+      }
+    }
+  ]
+}

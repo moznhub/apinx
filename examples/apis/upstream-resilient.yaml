@@ -1,0 +1,39 @@
+# A backend with three targets, health checks, a circuit breaker and retries.
+# Replace the addresses with your service's.
+
+apiVersion: apinx/v1
+kind: Upstream
+name: orders-service
+balancer: least_connections     # round_robin (default), weighted, least_connections, consistent_hash
+targets:
+  - url: http://10.0.1.10:8080
+  - url: http://10.0.1.11:8080
+  - url: http://10.0.1.12:8080
+health:
+  active:
+    enabled: true
+    path: /healthz
+    interval: 10s
+    timeout: 2s
+    unhealthy_threshold: 3
+    healthy_threshold: 2
+  passive:
+    enabled: true
+    failures: 5                   # consecutive 502/503/504 or connection errors
+    eject_for: 30s
+circuit_breaker:
+  enabled: true
+  failure_threshold: 5
+  open_duration: 30s
+  half_open_requests: 1
+retry:
+  attempts: 2
+  conditions: [connect_error, reset, "503"]
+  methods: [GET, HEAD]
+  backoff: 50ms
+  max_backoff: 500ms
+  budget_ratio: 0.2              # at most 20% extra requests from retries
+timeouts:
+  connect: 2s
+  response_header: 10s
+  total: 30s

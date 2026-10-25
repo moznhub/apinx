@@ -1,0 +1,17 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/moznhub/apinx/discussions
+    about: Ask how to do something, or share how you use Apinx.
+  - name: Documentation
+    url: https://apinx.io/docs/
+    about: Guides, the policy reference and the configuration reference.
+  - name: Report a security problem
+    url: https://github.com/moznhub/apinx/security/advisories/new
+    about: Privately. Never in a public issue.
+  - name: Customer support
+    url: mailto:support@moznhub.com
+    about: For customers, with your licence number.
+  - name: Licences and pricing
+    url: mailto:sales@moznhub.com
+    about: On-premises licences, evaluation licences and Apinx Cloud plans.

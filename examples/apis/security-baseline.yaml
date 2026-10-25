@@ -1,0 +1,27 @@
+# Rules every API runs: normalized errors as a global default, a request size
+# limit for the environment, and two locked flow hooks that no API editor can
+# switch off (threat protection and CORS before the backend, a header after).
+#
+#   apinxctl import security-baseline.yaml && apinxctl publish -m "security baseline"
+
+apiVersion: apinx/v1
+kind: Gateway
+policies:                         # global defaults, overridable per API
+  - type: normalize-errors
+environment:
+  policies:
+    - type: request-size-limit
+      config: { max_bytes: 2MB }
+  flow_hooks:                     # administrators only; locked on every API
+    client: [standard-security]
+    backend: [audit-headers]
+shared_flows:
+  - name: standard-security
+    policies:
+      - type: threat-protection
+      - type: cors
+        config: { origins: [https://app.example.com] }
+  - name: audit-headers
+    policies:
+      - type: set-header
+        config: { response: { X-Served-By: apinx } }

@@ -1,0 +1,220 @@
+{
+  "info": {
+    "name": "Apinx · JSONPlaceholder through the gateway",
+    "description": "Calls https://jsonplaceholder.typicode.com through the Apinx gateway API `jsonplaceholder` (base path /jsonplaceholder).\n\nSet the collection variables first:\n- `baseUrl`: the proxy listener, e.g. http://localhost:8080\n- `apiKey`: a key of the application `postman` (Consumers → postman → Issue key; it is shown once).\n\nWhat the gateway does on this API:\n- every call needs an API key (401 APX-PL-0001 without one)\n- 20 calls a minute per application (RateLimit-* headers; 429 when exceeded)\n- `X-Gateway: apinx` is added to every request, `X-Served-By: apinx` to every response, and backend headers such as X-Powered-By are removed\n- GET /posts/{id} and GET /users/{id} return reshaped bodies (jq transformations)\n- POST /posts adds `source: apinx-gateway` to the body before the backend sees it\n- GET /posts/{id}/comments is limited to 3 calls a minute\n- GET /todos is cached for 30 s (X-Cache: MISS, then HIT)\n\nOpen the console's API → Trace tab to see each call with its timeline.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:8080" },
+    { "key": "apiKey", "value": "" },
+    { "key": "postId", "value": "1" },
+    { "key": "userId", "value": "1" }
+  ],
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      { "key": "key", "value": "X-API-Key", "type": "string" },
+      { "key": "value", "value": "{{apiKey}}", "type": "string" },
+      { "key": "in", "value": "header", "type": "string" }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Every answer comes through the gateway.",
+          "if (pm.response.code < 400) {",
+          "  pm.test('served by the gateway', () => pm.expect(pm.response.headers.get('X-Served-By')).to.eql('apinx'));",
+          "  pm.test('backend header removed', () => pm.expect(pm.response.headers.has('X-Powered-By')).to.be.false);",
+          "  pm.test('rate limit headers present', () => pm.expect(pm.response.headers.has('RateLimit-Limit')).to.be.true);",
+          "}"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Posts",
+      "item": [
+        {
+          "name": "List posts",
+          "request": { "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/posts" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('100 posts, unchanged', () => { const b = pm.response.json(); pm.expect(b).to.have.length(100); pm.expect(b[0]).to.have.property('userId'); });",
+                  "pm.test('limit is 20 a minute', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('20'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get a post (reshaped)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/posts/{{postId}}" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('body reshaped by the gateway', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.all.keys('id', 'title', 'author_id', 'summary');",
+                  "  pm.expect(b).to.not.have.property('userId');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Comments of a post (3 a minute)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/posts/{{postId}}/comments" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Send this 4 times within a minute: the 4th answers 429.",
+                  "if (pm.response.code === 429) {",
+                  "  pm.test('rate limited with a coded error', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0007'));",
+                  "  pm.test('Retry-After given', () => pm.expect(pm.response.headers.has('Retry-After')).to.be.true);",
+                  "} else {",
+                  "  pm.test('200', () => pm.response.to.have.status(200));",
+                  "  pm.test('limit is 3 a minute here', () => pm.expect(pm.response.headers.get('RateLimit-Limit')).to.eql('3'));",
+                  "}"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create a post (request body transformed)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"title\": \"Hello from Postman\",\n  \"body\": \"Sent through Apinx\",\n  \"userId\": 1\n}" },
+            "url": "{{baseUrl}}/jsonplaceholder/posts"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201', () => pm.response.to.have.status(201));",
+                  "// JSONPlaceholder echoes what it received: the gateway added `source`.",
+                  "pm.test('gateway added source to the request body', () => pm.expect(pm.response.json().source).to.eql('apinx-gateway'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "Get a user (reshaped)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/users/{{userId}}" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "pm.test('flattened by the gateway', () => {",
+                  "  const b = pm.response.json();",
+                  "  pm.expect(b).to.have.all.keys('id', 'name', 'email', 'city', 'company');",
+                  "  pm.expect(b.city).to.be.a('string');",
+                  "});"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Todos",
+      "item": [
+        {
+          "name": "List todos (cached 30 s)",
+          "request": { "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/todos" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200', () => pm.response.to.have.status(200));",
+                  "// First call MISS, repeated within 30 s HIT (and much faster: compare the timelines in Trace).",
+                  "pm.test('cache header present', () => pm.expect(['MISS', 'HIT']).to.include(pm.response.headers.get('X-Cache')));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Refusals",
+      "item": [
+        {
+          "name": "No API key → 401",
+          "request": { "auth": { "type": "noauth" }, "method": "GET", "url": "{{baseUrl}}/jsonplaceholder/posts" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));",
+                  "pm.test('coded error', () => pm.expect(pm.response.headers.get('X-Apinx-Error')).to.eql('APX-PL-0001'));",
+                  "pm.test('uniform error body', () => pm.expect(pm.response.json()).to.have.property('code', 'APX-PL-0001'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Wrong API key → 401",
+          "request": { "method": "GET", "header": [{ "key": "X-API-Key", "value": "not-a-real-key" }], "auth": { "type": "noauth" }, "url": "{{baseUrl}}/jsonplaceholder/posts" },
+          "event": [
+            {
+              "listen": "test",
+              "script": { "type": "text/javascript", "exec": ["pm.test('401', () => pm.response.to.have.status(401));"] }
+            }
+          ]
+        },
+        {
+          "name": "No operation matches → 404",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/jsonplaceholder/posts/1" },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// DELETE is not an operation of this API: the gateway answers, the backend is never called.",
+                  "pm.test('refused by the gateway', () => pm.expect([404, 405]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

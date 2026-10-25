@@ -1,0 +1,401 @@
+# The HR mobile API, as its owner writes it: paste into the API's Code tab
+# (APIs → hr-mobile → Code) and save, or `PUT /api/v1/apis/{id}/definition`.
+#
+# It fronts the public Test API (https://skyhubsoft.com/test-api/scalar): a
+# three-step login that issues RS256 JWTs, and an employee directory. The
+# tutorial https://apinx.io/docs/tutorials/mobile-backend/ walks through every rule;
+# the Postman collection beside this file exercises all of them.
+#
+# Needs an upstream named `test-api` pointing at https://skyhubsoft.com/test-api
+# (the tutorial creates it with a health check on the JWKS).
+#
+# What the gateway enforces for the mobile app:
+#   - login: 10 requests a minute per client address
+#   - everything else: 100 requests a minute per signed-in user (the token's sub)
+#   - tokens are verified against the backend's JWKS; setup_scope for the login
+#     steps, scope_full for the directory, and only `admin` may delete
+#   - the user id reaches the backend only from the verified token, never from a
+#     header the app sent
+#   - mobile numbers leave the gateway masked (05xxxxxx01); request bodies are
+#     normalised (Saudi mobile formats, whitespace)
+#   - employee photos: upload needs a token and at most 100 KB; download needs
+#     a token and is cached for 5 minutes
+#   - the paged directory is a POST for the app and a GET for the backend
+#   - every call carries Accept-Language: ar or en (400 otherwise); names come
+#     back in that language (fullNameAr is folded into fullName)
+#   - GET /hr/api/employees/{id} and POST /hr/api/auth/verify-token stay anonymous
+#   - the discovery and JWKS endpoints are not exposed; the gateway reads them
+#   - GET /hr/health answers from the backend's JWKS: 200 up, 503 down
+
+apiVersion: apinx/v1
+kind: API
+name: hr-mobile
+description: Employee directory for the HR mobile app, on top of the Test API
+hosts: ["*"]
+base_path: /hr
+upstream: test-api
+strip_prefix: true
+
+# Applied to every operation; an operation below changes what it must.
+policies:
+  # The app's contract: a language on every call, ar or en, nothing else.
+  # The response programs below read it to choose the name's language.
+  - type: require-headers
+    config:
+      required:
+        Accept-Language: [ar, en]
+
+  # Hostile payloads never reach the backend; phones send small bodies.
+  - type: threat-protection
+    config:
+      max_body_bytes: 64KB
+      json:
+        max_depth: 8
+
+  # The backend's own tokens. The backend verifies them too, so the token is
+  # forwarded (strip: false). scope_full is the default requirement; the login
+  # steps relax it to setup_scope and anonymous operations switch it off.
+  - type: jwt
+    config:
+      issuer: TestApi
+      audiences: [TestApi.Clients]
+      jwks_url: https://skyhubsoft.com/test-api/.well-known/jwks.json
+      algorithms: [RS256]
+      required_scopes: [scope_full]
+      strip: false
+
+  # Per signed-in user (the token's sub). Anonymous operations set their own
+  # per-address limit below.
+  - type: rate-limit
+    config:
+      limit: 100
+      window: 1m
+      key: consumer
+      trust_x_forwarded_for: true
+
+  # Identity reaches the backend from the verified token only: whatever the
+  # app sent in these headers is removed first; on anonymous operations the
+  # empty claim leaves them out. Backend and CDN headers are dropped from
+  # the answer, and phones are told not to cache directory data.
+  - type: transform
+    config:
+      request:
+        headers:
+          remove: [X-User-Id, X-User-Name]
+          set:
+            X-User-Id: ${claim.sub}
+            X-User-Name: ${claim.preferred_username}
+      response:
+        headers:
+          remove: [Server, X-Powered-By, Nel, Report-To, CF-RAY, cf-cache-status, Alt-Svc]
+          set:
+            X-Served-By: apinx
+            Cache-Control: no-store
+
+  # Backend failures become the uniform error body, never a stack trace.
+  - type: normalize-errors
+    config:
+      statuses: [5xx]
+
+operations:
+  # ---- Login: three steps, each with a different rule ----------------------
+
+  # Step 1. No token yet, so the limit is per client address and tighter. The
+  # answer is reshaped into the OAuth-style form the app expects, with a hint
+  # for the next step.
+  - name: login
+    path: /api/auth/login
+    methods: [POST]
+    policies:
+      - type: jwt
+        enabled: false
+      - type: rate-limit
+        config:
+          limit: 10
+          window: 1m
+          key: ip
+          trust_x_forwarded_for: true
+      - type: transform
+        strategy: append
+        config:
+          response:
+            body:
+              program: |
+                if .body.accessToken then {
+                  access_token: .body.accessToken,
+                  token_type: "Bearer",
+                  expires_in: .body.expiresIn,
+                  scope: .body.scope,
+                  next_step: "POST /hr/api/auth/verify-mobile"
+                } else .body end
+
+  # Step 2. Needs the setup_scope token from step 1. The mobile number is
+  # normalised before the backend sees it: spaces and dashes removed, +966 5…
+  # and 966 5… become 05….
+  - name: verify-mobile
+    path: /api/auth/verify-mobile
+    methods: [POST]
+    policies:
+      - type: jwt
+        strategy: merge
+        config:
+          required_scopes: [setup_scope]
+      - type: transform
+        strategy: append
+        config:
+          request:
+            body:
+              program: |
+                .body | if (.mobileNumber | type) == "string" then
+                  .mobileNumber |= (gsub("[^0-9+]"; "")
+                    | if startswith("+966") then "0" + .[4:]
+                      elif startswith("966") then "0" + .[3:]
+                      else . end)
+                else . end
+          response:
+            body:
+              program: |
+                if .body.referenceKey then {
+                  reference_key: .body.referenceKey,
+                  expires_at: .body.expiresAtUtc,
+                  next_step: "POST /hr/api/auth/verify-pin with header ReferenceKey"
+                } else .body end
+
+  # Step 3. The same setup_scope token plus the ReferenceKey header, which
+  # passes through untouched. Answers with the scope_full token in the same
+  # form as step 1.
+  - name: verify-pin
+    path: /api/auth/verify-pin
+    methods: [POST]
+    policies:
+      - type: jwt
+        strategy: merge
+        config:
+          required_scopes: [setup_scope]
+      - type: transform
+        strategy: append
+        config:
+          response:
+            body:
+              program: |
+                if .body.accessToken then {
+                  access_token: .body.accessToken,
+                  token_type: "Bearer",
+                  expires_in: .body.expiresIn,
+                  scope: .body.scope
+                } else .body end
+
+  # Anonymous on the backend, anonymous here; limited per address.
+  - name: verify-token
+    path: /api/auth/verify-token
+    methods: [POST]
+    policies:
+      - type: jwt
+        enabled: false
+      - type: rate-limit
+        config:
+          limit: 20
+          window: 1m
+          key: ip
+          trust_x_forwarded_for: true
+
+  # ---- Employee directory --------------------------------------------------
+
+  # scope_full (inherited). The list is the same for every user, so it is
+  # cached for 30 s after authentication: a cached answer is still only served
+  # to a caller with a valid token. The API tells phones `Cache-Control:
+  # no-store`; the gateway's own cache must not read that as an instruction,
+  # hence respect_cache_control: false. Mobile numbers are masked on the way out.
+  - name: employees-list
+    path: /api/employees
+    methods: [GET]
+    policies:
+      - type: cache
+        config:
+          ttl: 30s
+          respect_cache_control: false
+      - type: transform
+        strategy: append
+        config:
+          response:
+            body:
+              program: |
+                (.request_headers["Accept-Language"] // "" | ascii_downcase | startswith("ar")) as $ar
+                | def localise: if (.fullNameAr | type) == "string" then .fullName = (if $ar then .fullNameAr else .fullName end) | del(.fullNameAr) else . end;
+                def mask: if (.mobileNumber | type) == "string" and (.mobileNumber | length) > 4 then .mobileNumber |= (.[0:2] + ("x" * (length - 4)) + .[-2:]) else . end;
+                if (.body | type) == "array" then .body | map(localise | mask) else .body end
+
+  # scope_full (inherited). The app POSTs {pageNumber, pageSize}; the backend
+  # serves the page on GET with query parameters. The method changes, the
+  # body's fields move to the query and the body is dropped. The answer is
+  # reshaped for the app and masked.
+  - name: employees-paged
+    path: /api/employees/paged
+    methods: [POST]
+    policies:
+      - type: transform
+        strategy: append
+        config:
+          request:
+            method: GET
+            query:
+              set:
+                pageNumber: ${body.pageNumber}
+                pageSize: ${body.pageSize}
+          response:
+            body:
+              program: |
+                (.request_headers["Accept-Language"] // "" | ascii_downcase | startswith("ar")) as $ar
+                | def localise: if (.fullNameAr | type) == "string" then .fullName = (if $ar then .fullNameAr else .fullName end) | del(.fullNameAr) else . end;
+                def mask: if (.mobileNumber | type) == "string" and (.mobileNumber | length) > 4 then .mobileNumber |= (.[0:2] + ("x" * (length - 4)) + .[-2:]) else . end;
+                if (.body.items | type) == "array" then {
+                  items: (.body.items | map(localise | mask)),
+                  page: {
+                    number: .body.pageNumber, size: .body.pageSize,
+                    total_count: .body.totalCount, total_pages: .body.totalPages,
+                    has_next: .body.hasNextPage, has_previous: .body.hasPreviousPage
+                  }
+                } else .body end
+
+  # The backend serves this one without a token, so does the gateway; the
+  # limit is per address. The number is masked and the name localised here too.
+  - name: employee-get
+    path: /api/employees/{employeeId}
+    methods: [GET]
+    policies:
+      - type: jwt
+        enabled: false
+      - type: rate-limit
+        config:
+          limit: 100
+          window: 1m
+          key: ip
+          trust_x_forwarded_for: true
+      - type: transform
+        strategy: append
+        config:
+          response:
+            body:
+              program: |
+                (.request_headers["Accept-Language"] // "" | ascii_downcase | startswith("ar")) as $ar
+                | def localise: if (.fullNameAr | type) == "string" then .fullName = (if $ar then .fullNameAr else .fullName end) | del(.fullNameAr) else . end;
+                def mask: if (.mobileNumber | type) == "string" and (.mobileNumber | length) > 4 then .mobileNumber |= (.[0:2] + ("x" * (length - 4)) + .[-2:]) else . end;
+                if (.body | type) == "object" and (.body | has("employeeId")) then .body | localise | mask else .body end
+
+  # scope_full. Strings are trimmed and the mobile number normalised before
+  # the backend sees them (the backend wants both fullName and fullNameAr);
+  # the answer is masked and localised like every other.
+  - name: employee-update
+    path: /api/employees/{employeeId}
+    methods: [PUT]
+    policies:
+      - type: transform
+        strategy: append
+        config:
+          request:
+            body:
+              program: |
+                .body
+                | with_entries(if (.value | type) == "string" then .value |= gsub("^\\s+|\\s+$"; "") else . end)
+                | if (.mobileNumber | type) == "string" then
+                    .mobileNumber |= (gsub("[^0-9+]"; "")
+                      | if startswith("+966") then "0" + .[4:]
+                        elif startswith("966") then "0" + .[3:]
+                        else . end)
+                  else . end
+          response:
+            body:
+              program: |
+                (.request_headers["Accept-Language"] // "" | ascii_downcase | startswith("ar")) as $ar
+                | def localise: if (.fullNameAr | type) == "string" then .fullName = (if $ar then .fullNameAr else .fullName end) | del(.fullNameAr) else . end;
+                def mask: if (.mobileNumber | type) == "string" and (.mobileNumber | length) > 4 then .mobileNumber |= (.[0:2] + ("x" * (length - 4)) + .[-2:]) else . end;
+                if (.body | type) == "object" and (.body | has("employeeId")) then .body | localise | mask else .body end
+
+  # scope_full and the administrator account only: a claim rule on top of the
+  # scope rule.
+  - name: employee-delete
+    path: /api/employees/{employeeId}
+    methods: [DELETE]
+    policies:
+      - type: jwt
+        strategy: merge
+        config:
+          required_claims:
+            preferred_username: [admin]
+
+  # ---- Employee photos -----------------------------------------------------
+
+  # scope_full (inherited), so the backend receives X-User-Id from the token
+  # even though it would serve the picture anonymously. The same picture for
+  # every caller, so one cached copy serves everyone for 5 minutes; the
+  # no-store the API sends to phones is not an instruction to this cache.
+  - name: image-download
+    path: /api/employees/{employeeId}/image
+    methods: [GET]
+    policies:
+      - type: cache
+        config:
+          ttl: 5m
+          respect_cache_control: false
+
+  # scope_full (inherited) and X-User-Id from the token. The multipart body
+  # may not exceed 100 KB: request-size-limit refuses a declared length above
+  # it before reading, and cuts off an undeclared one at the limit (413);
+  # threat-protection's own ceiling, 64 KB for the rest of the API, is raised
+  # to match.
+  - name: image-upload
+    path: /api/employees/{employeeId}/image
+    methods: [POST]
+    policies:
+      - type: request-size-limit
+        config:
+          max_bytes: 100KB
+      - type: threat-protection
+        strategy: merge
+        config:
+          max_body_bytes: 100KB
+
+  # ---- Health -------------------------------------------------------------
+
+  # Anonymous. Rewritten to the backend's JWKS: keys present means the
+  # application is up (200), anything else is 503. Cached for 10 s so a
+  # monitoring probe never adds load to the backend.
+  - name: health
+    path: /health
+    methods: [GET]
+    policies:
+      - type: jwt
+        enabled: false
+      - type: require-headers
+        enabled: false             # monitoring probes send no language
+      - type: rate-limit
+        config:
+          limit: 30
+          window: 1m
+          key: ip
+          trust_x_forwarded_for: true
+      - type: cache
+        config:
+          ttl: 10s
+          statuses: ["200"]
+          respect_cache_control: false
+      - type: transform
+        strategy: append
+        config:
+          request:
+            path:
+              replace:
+                pattern: ^/health$
+                with: /.well-known/jwks.json
+          response:
+            body:
+              program: |
+                {
+                  status: (if ((.body.keys // []) | length) > 0 then "up" else "down" end),
+                  signing_keys: ((.body.keys // []) | length),
+                  checked_at: (now | todate)
+                }
+            status:
+              when:
+                - if: ((.body.keys // []) | length) == 0
+                  status: 503

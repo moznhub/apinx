@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="Apinx">
+  <title>Apinx</title>
+  <!-- The fast shield: it protects your APIs, and the double chevron says it does it fast. For light backgrounds. -->
+  <path d="M32 8l20 7v16c0 13-9 21-20 25-11-4-20-12-20-25V15z" fill="#FF6B35"/><path d="M22 22l9 10-9 10M33 22l9 10-9 10" fill="none" stroke="#FFFFFF" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

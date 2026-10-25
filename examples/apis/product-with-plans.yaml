@@ -1,0 +1,21 @@
+# A product that bundles two APIs, with a free trial plan and a partner plan
+# that needs approval. Applications subscribe to a plan; the plan's limits
+# apply to every call they make. Needs APIs named posts and comments.
+#
+#   apinxctl import product-with-plans.yaml && apinxctl publish -m "content product"
+
+apiVersion: apinx/v1
+kind: Gateway
+products:
+  - name: content
+    display_name: Content API
+    apis: [posts, comments]
+    plans:
+      - name: trial
+        display_name: Trial
+        quota: { limit: 200, period: day }
+      - name: partner
+        display_name: Partner
+        approval_required: true
+        rate_limit: { limit: 500, per: second }
+        quota: { limit: 1000000, period: month }

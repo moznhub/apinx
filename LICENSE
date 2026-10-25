@@ -1,0 +1,35 @@
+Apinx
+Copyright (c) 2026 MoznHub. All rights reserved.
+
+1. The Apinx software
+
+Apinx is proprietary software of MoznHub. It is not open source, and it is not
+distributed from this repository. It is available as the hosted service Apinx
+Cloud and, under a licence agreement with MoznHub, for installation on premises.
+Its use is governed by those terms only.
+
+Licences and terms: sales@moznhub.com
+
+2. The files in this repository
+
+The examples, documentation and other files in this repository (except the Apinx
+and MoznHub names, logos and screenshots) are licensed under the MIT licence:
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy of
+  these files, to deal in them without restriction, including without limitation
+  the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or
+  sell copies of them, and to permit persons to whom they are furnished to do so,
+  subject to the following condition: the above copyright notice and this
+  permission notice shall be included in all copies or substantial portions.
+
+  THE FILES ARE PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED,
+  INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+  PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+  HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+  FILES OR THE USE OR OTHER DEALINGS IN THEM.
+
+3. Trademarks
+
+Apinx and MoznHub, and their logos, are trademarks of MoznHub. The MIT licence above
+grants no right to use them, except to refer to the software truthfully.

@@ -1,0 +1,24 @@
+# An API protected by an API key, with a rate limit per application, and one
+# public operation. Paste into APIs › New API › Code, or import with apinxctl.
+# Needs an upstream named orders-service (see upstream-resilient.yaml).
+
+apiVersion: apinx/v1
+kind: API
+name: orders
+base_path: /orders
+upstream: orders-service
+strip_prefix: true
+policies:
+  - type: api-key                 # X-API-Key header by default; the key is stripped
+  - type: rate-limit
+    config:
+      limit: 600
+      window: 1m                  # per consumer by default
+operations:
+  - name: all
+    path: /{rest...}
+  - name: health
+    path: /health
+    policies:
+      - type: api-key
+        enabled: false            # this operation is public

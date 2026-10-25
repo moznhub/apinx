@@ -1,0 +1,42 @@
+# An API for a browser app: tokens from your identity provider (any OpenID
+# Connect or OAuth 2 provider), CORS for the app's origin, and the backend's
+# answer reshaped with jq. Replace login.example.com and app.example.com.
+
+apiVersion: apinx/v1
+kind: API
+name: orders-web
+base_path: /web/orders
+upstream: orders-service
+strip_prefix: true
+policies:
+  - type: cors
+    config:
+      origins: [https://app.example.com]
+      methods: [GET, POST, PUT, DELETE]
+      headers: [Authorization, Content-Type]
+      credentials: true
+      max_age: 10m
+  - type: jwt
+    config:
+      issuer: https://login.example.com/
+      jwks_url: https://login.example.com/.well-known/jwks.json
+      audiences: [orders-api]
+      required_scopes: [orders:read]
+operations:
+  - name: all
+    path: /{rest...}
+  - name: order-summary
+    path: /orders/{id}
+    methods: [GET]
+    policies:
+      - type: transform
+        config:
+          request:
+            headers:
+              set:
+                X-User-Id: ${claim.sub}     # from the verified token, never from the caller
+          response:
+            headers:
+              remove: [X-Powered-By, Server]
+            body:
+              program: '{id: .body.id, status: .body.status, total: .body.total}'

@@ -1,0 +1,56 @@
+name: Bug report
+description: Something in Apinx does not work as the documentation says.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time. **Security problems never go here:** see [SECURITY.md](https://github.com/moznhub/apinx/blob/main/SECURITY.md).
+        Remove API keys, tokens, passwords and personal data from everything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Apinx version
+      description: Admin › About in the console, or `apinx version`.
+      placeholder: v1.1.6
+    validations:
+      required: true
+  - type: dropdown
+    id: edition
+    attributes:
+      label: Edition
+      options:
+        - On premises
+        - Apinx Cloud
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      description: Operating system and architecture, and SQLite or PostgreSQL.
+      placeholder: Ubuntu 24.04, amd64, PostgreSQL 16
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead. Include the error code (APX-…) if there is one.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: The smallest API definition or set of steps that shows the problem.
+      placeholder: |
+        1. Create an API with …
+        2. Call `curl -i localhost:8080/…`
+        3. See …
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or trace
+      description: The relevant lines of `journalctl -u apinx`, or the request ID from Analyze › Traffic.
+      render: text
