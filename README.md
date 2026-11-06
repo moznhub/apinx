@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://apinx.io/docs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-apinx.io-0f172a"></a>
-  <img alt="Latest version" src="https://img.shields.io/badge/version-1.1.6-f97316">
+  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.1-f97316">
 </p>
 
 <p align="center">
@@ -65,7 +65,8 @@ and run, in the cloud or entirely on its own servers.
   deprecation, and products with plans and quotas.
 - **You can see what happened.** Every request has a timeline of every policy decision and the
   backend call, with credentials redacted. Send a test request and see its trace next to the
-  answer.
+  answer. The same requests reach the tools you already run: OpenTelemetry traces, Prometheus
+  metrics, and the access log in Grafana Loki, Elasticsearch, OpenSearch or Seq.
 - **Fast and measured.** 46,000 requests per second at a p50 of 0.8 ms on a laptop, with the
   access log on. Rate limits are exact under load. The request path never touches the database.
 - **Yours to run.** On premises, Apinx runs on your own servers, including air-gapped networks.
@@ -84,6 +85,9 @@ and run, in the cloud or entirely on its own servers.
 | API versions with a deprecation lifecycle | Yes | Rarely | Partial | Yes |
 | Locked rules every API must run | Yes | Partial | Yes | Yes |
 | OAuth 2 sign-in to the backend | Yes | Often paid editions only | Yes | Yes |
+| OAuth 2 access tokens issued to your applications | Yes, with rotating refresh tokens | Often a plugin | Yes | Yes |
+| Requests validated against your OpenAPI schemas | Yes | Often a plugin | Yes | Partial |
+| OpenTelemetry traces and logs to your own tools | Yes | Often a plugin | Their own tools first | Partial |
 | Clustering and high availability | Yes | Yes | Yes | Yes |
 | Own identity server, developer portal | Roadmap | Often paid editions only | Yes | Yes |
 
@@ -107,19 +111,24 @@ Every request then shows up in **Analyze › Traffic** with its policy timeline,
 
 | Area | |
 |---|---|
-| Protocols | HTTP/1.1, HTTP/2 (h2c and TLS), gRPC pass-through (unary and streaming), WebSocket, Server-Sent Events |
-| Routing | Hosts, path patterns with parameters, methods, header conditions, priorities, prefix stripping |
-| Upstreams | Round robin, weighted, least connections, consistent hash; active and passive health checks; retries; circuit breaker; timeouts |
-| Authentication | API keys, JWT (JWKS, discovery or inline keys), HTTP Basic; OAuth 2 to the backend |
+| Protocols | HTTP/1.1, HTTP/2 (h2c and TLS), gRPC pass-through (unary and streaming), WebSocket, Server-Sent Events; SOAP backends published as JSON APIs |
+| Routing | Hosts, path patterns with parameters and catch-all, methods, header conditions, priorities, prefix stripping; operations switched on and off |
+| Upstreams | Round robin, weighted, least connections, consistent hash; active and passive health checks (the gRPC health protocol for gRPC); retries; circuit breaker; timeouts; weighted canary with a pin header; traffic mirroring |
+| Authentication | API keys; access tokens Apinx issues (OAuth 2 client credentials, rotating refresh tokens, revocable sessions); JWT (JWKS, discovery or inline keys); HTTP Basic; several bound together as alternatives; OAuth 2 to the backend |
 | Traffic | Rate limits (three algorithms, four keys), concurrency limits, quotas per day or month |
-| Protection | Threat protection (JSON, XML, injection patterns), size limits, IP filters, CORS, method allow lists |
-| Transformation | Headers, path and query; jq body programs with a preview; status rules; normalized errors |
-| Composition | Service callouts in parallel, stitched into one answer; forward, mock responses, mirroring |
+| Protection | Request validation against JSON Schema (from your OpenAPI document), threat protection (JSON, XML, injection patterns), size limits, IP filters, CORS, method allow lists, a forward allow-list to the backend |
+| Transformation | Headers, path and query; jq body programs with a preview; status rules; normalized errors; gzip and Brotli compression |
+| Composition | Service callouts in parallel, stitched into one answer; SOAP envelopes built from JSON; mock responses; mirroring |
 | Lifecycle | Drafts, immutable revisions, deploy and rollback, environments, versions with deprecation and sunset |
-| Products | Products, plans, subscriptions with approval, usage per subscription |
-| Console | Every capability as a screen, a visual policy flow, a code tab, OpenAPI and Postman import, an AI assistant |
-| Observability | Request inspector, analytics, gateway map, access log, Prometheus metrics, audit with export |
+| Products | Products offering chosen operations, plans, subscriptions with approval, usage per subscription |
+| Console | Every capability as a screen, a visual policy flow, a code tab, OpenAPI, Postman and WSDL import, an AI assistant |
+| Observability | Request inspector (shared across instances), analytics with API health over time and errors by exact status, gateway map, access log to a file, syslog, Grafana Loki, Elasticsearch, OpenSearch, Seq or a TCP collector, a Grafana dashboard, OpenTelemetry traces, Prometheus metrics, audit with export |
+| Security | Secrets sealed with your master key (a file, Vault Transit or a KMS), roles, lockout and a per-address sign-in throttle, OIDC single sign-on, a strict content security policy and HSTS |
 | Operations | SQLite or PostgreSQL, clustering over PostgreSQL with Redis counters, backup and restore, `apinxctl` for CI |
+
+**Works with the tools you run:** Grafana, Prometheus, Loki, Tempo, Jaeger, any OpenTelemetry
+collector, Elasticsearch, OpenSearch, Seq, syslog, Vector, Fluent Bit, Postman, OpenAPI and
+HashiCorp Vault. See [Grafana and other tools](https://apinx.io/docs/guides/integrations/).
 
 <table>
   <tr>
