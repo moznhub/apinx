@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://apinx.io/docs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-apinx.io-0f172a"></a>
-  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.1-f97316">
+  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.8-f97316">
 </p>
 
 <p align="center">
@@ -67,29 +67,31 @@ and run, in the cloud or entirely on its own servers.
   backend call, with credentials redacted. Send a test request and see its trace next to the
   answer. The same requests reach the tools you already run: OpenTelemetry traces, Prometheus
   metrics, and the access log in Grafana Loki, Elasticsearch, OpenSearch or Seq.
-- **Fast and measured.** 46,000 requests per second at a p50 of 0.8 ms on a laptop, with the
-  access log on. Rate limits are exact under load. The request path never touches the database.
+- **Fast and measured.** 78,560 requests per second at a p50 of 1.6 ms on one 12-core desktop
+  that also ran the backend and the load generator, with the access log on
+  ([benchmarks](https://apinx.io/docs/about/benchmarks/)). Rate limits are exact under load.
+  The request path never touches the database.
 - **Yours to run.** On premises, Apinx runs on your own servers, including air-gapped networks.
   The licence is perpetual, covers unlimited instances, is verified offline, and nothing calls
   home. If a licence ever lapses, your deployed APIs keep serving traffic.
 
-### Compared with the usual choices
+### At a glance
 
-| | Apinx | Open-source gateways | Hosted API platforms | Self-hosted API managers |
-|---|---|---|---|---|
-| One product with the console inside | Yes | No | No (hosted) | No |
-| Runs entirely on your servers, offline | Yes | Yes | No | Yes |
-| Revisions, deploy and rollback per API | Yes | Often external tooling | Yes | Yes |
-| Visual policy flow with a trace of every step | Yes | Rarely | Yes | Partial |
-| Products, plans and subscriptions | Yes | Often paid editions only | Yes | Yes |
-| API versions with a deprecation lifecycle | Yes | Rarely | Partial | Yes |
-| Locked rules every API must run | Yes | Partial | Yes | Yes |
-| OAuth 2 sign-in to the backend | Yes | Often paid editions only | Yes | Yes |
-| OAuth 2 access tokens issued to your applications | Yes, with rotating refresh tokens | Often a plugin | Yes | Yes |
-| Requests validated against your OpenAPI schemas | Yes | Often a plugin | Yes | Partial |
-| OpenTelemetry traces and logs to your own tools | Yes | Often a plugin | Their own tools first | Partial |
-| Clustering and high availability | Yes | Yes | Yes | Yes |
-| Own identity server, developer portal | Roadmap | Often paid editions only | Yes | Yes |
+| Capability | Apinx |
+|---|---|
+| One product with the console inside | Yes |
+| Runs entirely on your servers, offline | Yes |
+| Revisions, deploy and rollback per API | Yes |
+| Visual policy flow with a trace of every step | Yes |
+| Products, plans and subscriptions | Yes |
+| API versions with a deprecation lifecycle | Yes |
+| Locked rules every API must run | Yes |
+| OAuth 2 sign-in to the backend | Yes |
+| OAuth 2 access tokens issued to your applications | Yes, with rotating refresh tokens |
+| Requests validated against your OpenAPI schemas | Yes |
+| OpenTelemetry traces and logs to your own tools | Yes |
+| Clustering and high availability | Yes |
+| Own identity server, developer portal | Roadmap |
 
 Apinx stands on years of good ideas from the API management field.
 
@@ -122,8 +124,8 @@ Every request then shows up in **Analyze › Traffic** with its policy timeline,
 | Lifecycle | Drafts, immutable revisions, deploy and rollback, environments, versions with deprecation and sunset |
 | Products | Products offering chosen operations, plans, subscriptions with approval, usage per subscription |
 | Console | Every capability as a screen, a visual policy flow, a code tab, OpenAPI, Postman and WSDL import, an AI assistant |
-| Observability | Request inspector (shared across instances), analytics with API health over time and errors by exact status, gateway map, access log to a file, syslog, Grafana Loki, Elasticsearch, OpenSearch, Seq or a TCP collector, a Grafana dashboard, OpenTelemetry traces, Prometheus metrics, audit with export |
-| Security | Secrets sealed with your master key (a file, Vault Transit or a KMS), roles, lockout and a per-address sign-in throttle, OIDC single sign-on, a strict content security policy and HSTS |
+| Observability | Request inspector (shared across instances), analytics with API health over time and errors by exact status, gateway map, access log to a file, syslog, Grafana Loki, Elasticsearch, OpenSearch, Seq or a TCP collector, a Grafana dashboard, OpenTelemetry traces, Prometheus metrics, audit with export; in Apinx Cloud each organization sends its own traces, request metrics and request logs to its own collector |
+| Security | Secrets sealed with your master key (a file, Vault Transit or a KMS), roles, lockout and a per-address sign-in throttle, OIDC single sign-on, a strict content security policy and HSTS; in Apinx Cloud, console sessions tied to their browser and network |
 | Operations | SQLite or PostgreSQL, clustering over PostgreSQL with Redis counters, backup and restore, `apinxctl` for CI |
 
 **Works with the tools you run:** Grafana, Prometheus, Loki, Tempo, Jaeger, any OpenTelemetry

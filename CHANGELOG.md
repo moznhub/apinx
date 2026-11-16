@@ -2,6 +2,58 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.8 (2026-11-13)
+
+- Apinx Cloud, Enterprise: each organization can send its **request logs** to its own tool
+  over OpenTelemetry, through the same collector as its traces. One request in a hundred and
+  every error by default; the caller's address only when you ask for it. Sending never delays
+  a request.
+- A request whose path is not valid UTF-8 no longer makes a batch of traces fail.
+- New guide: [Traces, metrics and logs in your own tool](https://apinx.io/docs/guides/own-tool/).
+
+## 1.3.7 (2026-11-12)
+
+- Apinx Cloud, Enterprise: each organization can send its **request metrics** to its own
+  collector, once a minute, with a status line that shows the last send and any failure.
+- Trace export: a token entered on its own is sent as `Authorization: Bearer <token>`.
+- Rotating the master key now moves every value sealed with it when the server starts.
+- Apinx Cloud accepts more connections at once.
+
+## 1.3.6 (2026-11-12)
+
+- Apinx Cloud: editors, not only administrators, can change the trace export. The trace
+  window is started from the Traffic page.
+
+## 1.3.5 (2026-11-11)
+
+- Apinx Cloud: Enterprise includes ten people and four months of analytics, at one price from
+  the first year ([pricing](https://apinx.io/pricing)). The plan card shows the console
+  address and the gateway address.
+- The website and the [benchmarks](https://apinx.io/docs/about/benchmarks/) carry the current
+  measurements: 78,560 requests per second on a plain route on one 12-core desktop.
+- Fixes from a review of the whole product.
+
+## 1.3.3 (2026-11-11)
+
+- **A faster request path:** a verified JWT is remembered until it expires, policies with the
+  same issuer share one key set, and several callers missing the same cache entry cause one
+  call to the backend.
+- Every request is recorded in the access log and the analytics, however it ended.
+- jq programs have limits on recursion, nesting and program depth.
+- In a cluster, rotating the data key is safe while instances restart one by one: the
+  previous key is kept for a day.
+- Apinx Cloud: each organization has a ceiling on its requests in flight and on the request
+  bodies it holds at once, so one organization cannot crowd out the others.
+- Fixes: a crash on one kind of refused request, and a caller that disconnects is no longer
+  counted as a failure of the shared counters.
+
+## 1.3.2 (2026-11-07)
+
+- Apinx Cloud: a console session stays with the browser and the network that signed in.
+  **Your sessions** lists them and ends any of them, and a few risky actions ask for a code
+  sent to your email first.
+- A capacity view shows whether the server is turning connections away.
+
 ## 1.3.1 (2026-11-06)
 
 - Apinx Cloud: a database migration that 1.3.0 could not apply on PostgreSQL now applies.
