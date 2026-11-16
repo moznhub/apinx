@@ -2,6 +2,15 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.9 (2026-11-16)
+
+- **A redesigned manual:** tabs for Start, Learn, Build, Operate and Reference, with the guides
+  grouped by subject; a landing page with three learning paths; every page marked as a
+  tutorial, a how-to guide, a concept or a reference, and ending with related pages.
+- Diagrams of the architecture, a request's journey, the policy levels and deployment, and
+  annotated screenshots of the console.
+- New page: [Architecture](https://apinx.io/docs/concepts/architecture/).
+
 ## 1.3.8 (2026-11-13)
 
 - Apinx Cloud, Enterprise: each organization can send its **request logs** to its own tool
