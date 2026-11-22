@@ -97,6 +97,14 @@ Apinx stands on years of good ideas from the API management field.
 
 ## Your first API in five minutes
 
+<p align="center">
+  <a href="https://apinx.io/#watch"><img src="assets/video/first-api.jpg" width="720" alt="Watch the walkthrough: your first API on Apinx Cloud, step by step, 9 minutes, narrated, with subtitles"></a>
+</p>
+
+Prefer to watch? [The walkthrough](https://apinx.io/#watch) builds a backend, two operations,
+an API key, a rate limit and a transformation, then shows the same API as YAML and its
+traffic. The guided setup does it in five steps:
+
 1. **Backend:** name the API and point it at your service.
 2. **Protection:** keep **API key**. An application and its first key are created for you.
 3. **Rate limit:** keep 60 a minute, or set your own.

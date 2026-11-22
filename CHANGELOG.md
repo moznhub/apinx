@@ -2,6 +2,22 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.10 (2026-11-22)
+
+- **A walkthrough video:** your first API on Apinx Cloud, step by step: a backend, two
+  operations, an API key, a rate limit, a transformation, the same API as YAML, and its
+  traffic. Nine minutes, narrated, with subtitles. On [apinx.io](https://apinx.io/#watch), in
+  the manual's [Start here](https://apinx.io/docs/getting-started/), and on the console's
+  Overview until you choose **Don't show again**.
+- Apinx Cloud: a new Free organization's address ends in `-org` instead of `-dev`
+  (`acme-org`). Existing addresses do not change. Overview shows Free organizations what
+  Enterprise adds, and how to reach sales.
+- Apinx Cloud: news about Apinx reaches registered users by email, with an unsubscribe link
+  in every message, and one-click unsubscribe in mail apps that offer it.
+- Apinx Cloud operators see when each organization's people last signed in.
+- Fix: a second **Add route** no longer opens with the fields and policies of the route
+  added before it.
+
 ## 1.3.9 (2026-11-16)
 
 - **A redesigned manual:** tabs for Start, Learn, Build, Operate and Reference, with the guides
