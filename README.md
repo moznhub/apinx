@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://apinx.io/docs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-apinx.io-0f172a"></a>
-  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.10-f97316">
+  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.11-f97316">
 </p>
 
 <p align="center">

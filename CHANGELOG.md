@@ -2,6 +2,23 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.11 (2026-11-23)
+
+- **Transformations keep to their time budget, call by call:** a single jq function (a sort,
+  a search, a comparison, a merge, a regular expression) whose worst case cannot finish in the
+  time the program has left is refused before it starts, as over the budget, and the error
+  names the call. Ordinary transformations run as before; a program that needs more time can
+  raise `time_budget`. See [Transforming requests and
+  responses](https://apinx.io/docs/guides/transformations/).
+- Regular expressions you write in threat protection, path rewrites, schema patterns and route
+  header matches are checked against the length of the value before they run. A value too long
+  for its pattern is refused with `413 APX-PL-0039` (threat protection and path rewrites),
+  fails the pattern (schemas), or does not match (route headers).
+- Apinx Cloud does not deploy a regular expression over 32 KB, or one whose counted repeats
+  make it too large (`422 APX-SAAS-0085`). Patterns already deployed keep working.
+- Threat protection's built-in command-injection check reads long headers and bodies faster,
+  and jq's `match(…; "g")` and `delpaths` are faster on large values.
+
 ## 1.3.10 (2026-11-22)
 
 - **A walkthrough video:** your first API on Apinx Cloud, step by step: a backend, two
