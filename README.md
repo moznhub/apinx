@@ -12,7 +12,7 @@
 
 <p align="center">
   <a href="https://apinx.io/docs/"><img alt="Documentation" src="https://img.shields.io/badge/docs-apinx.io-0f172a"></a>
-  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.13-f97316">
+  <img alt="Latest version" src="https://img.shields.io/badge/version-1.3.14-f97316">
 </p>
 
 <p align="center">
@@ -103,7 +103,9 @@ Apinx stands on years of good ideas from the API management field.
 
 Prefer to watch? [The walkthrough](https://apinx.io/#watch) builds a backend, two operations,
 an API key, a rate limit and a transformation, then shows the same API as YAML and its
-traffic. The guided setup does it in five steps:
+traffic. More videos, on transformations, policies, products and the manual itself, are on
+the [Videos](https://apinx.io/docs/getting-started/videos/) page. The guided setup builds the
+same API in five steps:
 
 1. **Backend:** name the API and point it at your service.
 2. **Protection:** keep **API key**. An application and its first key are created for you.

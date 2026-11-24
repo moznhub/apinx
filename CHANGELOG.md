@@ -2,6 +2,25 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.14 (2026-11-25)
+
+- **A video library in the manual.** Six narrated videos with subtitles on the new
+  [Videos](https://apinx.io/docs/getting-started/videos/) page: your first API, transforming
+  requests and responses, policies, products and plans, using the manual with an AI
+  assistant, and a tour of the manual. Each one also plays on the page it teaches, and the
+  home page and the console's Overview link to the Videos page.
+- **The manual for AI assistants:** every page has **Copy for AI**, and the whole manual is
+  published as `llms.txt`, `llms-full.txt` and `llms-yaml.txt` for an assistant to read. See
+  [Using the manual with an AI model](https://apinx.io/docs/guides/ai-models/).
+- The console says "operation" everywhere, the policy catalogue too.
+- **Try it** shows the response headers.
+- The trace says "Answered by" when a policy answers a call itself, such as a cache hit or a
+  mock response.
+- Policy code fields show JSON instead of `[object Object]`, and a new Transform policy opens
+  empty, with **Insert example**.
+- A product's subscribe form follows the product once it is published, and **Deployments**
+  refreshes after an API is saved.
+
 ## 1.3.13 (2026-11-24)
 
 - **Apinx Cloud: Enterprise starts when you send the transfer receipt.** The Enterprise invoice
