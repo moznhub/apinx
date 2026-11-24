@@ -2,6 +2,34 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.13 (2026-11-24)
+
+- **Apinx Cloud: Enterprise starts when you send the transfer receipt.** The Enterprise invoice
+  arrives by email with the bank details for the transfer, the reference to quote and the date
+  to pay by, seven working days after it is issued. Reply with the transfer receipt and the
+  plan is switched on the same working day, before the money arrives; it is confirmed when the
+  payment arrives. If the payment has not arrived by the pay-by date, the organization may
+  return to the plan it had, with everything it configured kept, and the invoice can still be
+  paid afterwards.
+- A redesigned invoice: one page with the amount, the bank details and what happens next, to
+  print or save as a PDF from the **Subscription** screen.
+- The Subscription screen shows where each invoice stands (due, receipt received, paid,
+  overdue, not paid in time, cancelled), and says so while a plan is on ahead of its payment.
+  See [Console screens](https://apinx.io/docs/reference/console-screens/#subscription).
+
+## 1.3.12 (2026-11-23)
+
+- **A jq program is held to what it returns and to what it holds:** its output takes at most
+  four times `max_bytes`, or twice its input when that is more, and an output that repeats one
+  array thousands of times is refused before it is written. What a program holds in memory at
+  once is at most 128 times `max_bytes`. A global `match`, `scan` or `gsub` that would build
+  more matches than fit is refused before it builds any. Ordinary transformations run as
+  before. See [Transforming requests and
+  responses](https://apinx.io/docs/guides/transformations/).
+- Apinx Cloud: the programs of one organization may together hold four times what one may;
+  when they do, a request is answered `503 APX-PL-0040` with `Retry-After`, and fits a moment
+  later.
+
 ## 1.3.11 (2026-11-23)
 
 - **Transformations keep to their time budget, call by call:** a single jq function (a sort,
