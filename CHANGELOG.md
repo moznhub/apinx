@@ -2,6 +2,27 @@
 
 What changed in each Apinx version. Apinx Cloud always runs the latest one.
 
+## 1.3.15 (2026-11-27)
+
+- **Apinx Cloud: each plan sets the largest request.** One call may send up to 1 MB on the
+  Free plan and 25 MB on Enterprise; a larger one is answered `413 APX-SAAS-0086`. The count
+  is of the bytes sent, whether or not the caller declared a length, and of the whole call: a
+  gRPC client stream is one call, however long it lasts. **Subscription** shows your
+  organization's number as **Largest request**; write to us if you need more. See
+  [gRPC](https://apinx.io/docs/guides/grpc/).
+- **Bytes in counts every upload.** A body sent without a declared length (a chunked upload,
+  any gRPC call) was recorded as 0 bytes; analytics, the access log and traces now show what
+  was sent.
+- **gRPC behind nginx:** the
+  [Linux deployment page](https://apinx.io/docs/operations/deploy-linux/) gives gRPC calls an
+  upstream block of their own. With one block for REST and gRPC, nginx mixed their
+  connections and calls failed at random once both kinds of traffic arrived. Apinx Cloud's
+  edge is set up the same way.
+- A request body refused for its size while it is being sent is answered 413, and no longer
+  counts against the backend that was receiving it.
+- The manual's page on AI models links `llms.txt`, `llms-full.txt` and `llms-yaml.txt`
+  directly.
+
 ## 1.3.14 (2026-11-25)
 
 - **A video library in the manual.** Six narrated videos with subtitles on the new
